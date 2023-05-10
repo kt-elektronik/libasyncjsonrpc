@@ -4,6 +4,7 @@ using AsyncJsonRPCExample.Notifications;
 using AsyncRPCCore;
 using System.IO.Pipes;
 
+// Create and interconnect client and server for JSON-RPC over pipes
 var clientTxStream = new AnonymousPipeServerStream(PipeDirection.Out);
 var serverRxStream = new AnonymousPipeClientStream(PipeDirection.In, clientTxStream.GetClientHandleAsString());
 var serverTxStream = new AnonymousPipeServerStream(PipeDirection.Out);
@@ -11,14 +12,19 @@ var clientRxStream = new AnonymousPipeClientStream(PipeDirection.In, serverTxStr
 var client = new AsyncJsonRPCExample.ClientMuxer() { RxStream = clientRxStream, TxStream = clientTxStream, UnmarshalMessageId = new UnmarshalMessageForId() };
 var server = new AsyncJsonRPCExample.ServerMuxer() { RxStream = serverRxStream, TxStream = serverTxStream, UnmarshalMessageId = new UnmarshalMessageForId() };
 
+// Run the server immediately
 _ = server.RunRxAsync().ConfigureAwait(false);
 
+// Support to keep the top-level code from finishing until the demo is complete
 var finished = new SemaphoreSlim(0);
 var finishedTimer = new System.Timers.Timer(TimeSpan.FromMilliseconds(100));
 finishedTimer.Elapsed += (sender, e) => finished.Release();
 
+// For the FibonacciEvent in this example, create the generator
 var fibonacciGenerator = new EventGenerator<FibonacciNotification>();
 client.FibonacciEvent += fibonacciGenerator.OnEvent;
+
+// Handle events in a task, just printing to console, no interaction with anything else in this demo
 _ = Task.Run(async () =>
 {
     await foreach (var e in fibonacciGenerator.OnEventAsync())
@@ -30,8 +36,10 @@ _ = Task.Run(async () =>
     client.FibonacciEvent -= fibonacciGenerator.OnEvent;
 });
 
+// All client setup complete, start the client muxer
 _ = client.RunRxAsync().ConfigureAwait(false);
 
+// The demo subscribes for notifications that will return the fibonacci sequence
 var (response, error) = await client.CallAsync(new SubscribeFibonacci(93));
 if (error is not null)
 {
@@ -39,8 +47,9 @@ if (error is not null)
     Environment.Exit(1);
 }
 Console.WriteLine($"RPC SubscribeFibonacci(10) Response = {response!.Depth}");
-finishedTimer.Start();
 
+// Keep the top level code from finishing until no more notifications to reset the timer
+finishedTimer.Start();
 await finished.WaitAsync();
 
 namespace AsyncJsonRPCExample
