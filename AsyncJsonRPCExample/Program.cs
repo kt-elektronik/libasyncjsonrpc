@@ -1,5 +1,6 @@
 ﻿using AsyncJsonRPC;
 using AsyncJsonRPCExample;
+using AsyncJsonRPCExample.Notifications;
 using AsyncRPCCore;
 using System.IO.Pipes;
 
@@ -11,18 +12,25 @@ var client = new AsyncJsonRPCExample.ClientMuxer() { RxStream = clientRxStream, 
 var server = new AsyncJsonRPCExample.ServerMuxer() { RxStream = serverRxStream, TxStream = serverTxStream, UnmarshalMessageId = new UnmarshalMessageForId() };
 
 _ = server.RunRxAsync().ConfigureAwait(false);
-_ = client.RunRxAsync().ConfigureAwait(false);
 
 var finished = new SemaphoreSlim(0);
-var finishedTimer = new System.Timers.Timer(TimeSpan.FromSeconds(1));
+var finishedTimer = new System.Timers.Timer(TimeSpan.FromMilliseconds(100));
 finishedTimer.Elapsed += (sender, e) => finished.Release();
 
-client.FibonacciEvent += (sender, e) =>
+var fibonacciGenerator = new EventGenerator<FibonacciNotification>();
+client.FibonacciEvent += fibonacciGenerator.OnEvent;
+_ = Task.Run(async () =>
 {
-    finishedTimer.Stop();
-    finishedTimer.Start();
-    Console.WriteLine($"Got FibonacciNotification.Value = {e.Value}");
-};
+    await foreach (var e in fibonacciGenerator.OnEventAsync())
+    {
+        finishedTimer.Stop();
+        finishedTimer.Start();
+        Console.WriteLine($"Got FibonacciNotification.Value = {e.Value}");
+    }
+    client.FibonacciEvent -= fibonacciGenerator.OnEvent;
+});
+
+_ = client.RunRxAsync().ConfigureAwait(false);
 
 var (response, error) = await client.CallAsync(new SubscribeFibonacci(93));
 if (error is not null)
