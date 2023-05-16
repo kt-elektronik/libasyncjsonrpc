@@ -17,7 +17,7 @@ namespace AsyncJsonRPC
     /// </param>
     public sealed record class ErrorResponse(short Code, string Message) : Datagram
     {
-        public sealed record class ErrorField(short Code, string Message);
+        public sealed record class ErrorField([property: JsonPropertyName("code")] short Code, [property: JsonPropertyName("message")] string Message);
 
         [JsonIgnore]
         public short Code
