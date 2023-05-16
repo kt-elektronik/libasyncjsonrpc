@@ -41,18 +41,15 @@
         /// the message scheduler.</param>
         public async Task RunRxAsync(CancellationToken cancellation = default)
         {
-            for (; ; )
+            await foreach (var message in UnmarshalMessageId.ToMuxerMessagesAsync(RxStream, cancellation).WithCancellation(cancellation).ConfigureAwait(false))
             {
-                await foreach (var message in UnmarshalMessageId.ToMuxerMessagesAsync(RxStream, cancellation).WithCancellation(cancellation).ConfigureAwait(false))
+                if (message.IsTwoWayMessage)
                 {
-                    if (message.IsTwoWayMessage)
-                    {
-                        OnRxTwoWayMessage(message, cancellation);
-                    }
-                    else
-                    {
-                        OnRxOneWayMessage(message, cancellation);
-                    }
+                    OnRxTwoWayMessage(message, cancellation);
+                }
+                else
+                {
+                    OnRxOneWayMessage(message, cancellation);
                 }
             }
         }

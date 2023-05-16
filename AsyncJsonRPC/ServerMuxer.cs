@@ -32,32 +32,33 @@ namespace AsyncJsonRPC
 
         protected sealed override async void OnRxTwoWayMessage(IMuxerMessage<uint> message, CancellationToken cancellation = default)
         {
-            try
+            var options = new JsonSerializerOptions
             {
-                var options = new JsonSerializerOptions
-                {
-                    Converters = { new JsonStringEnumConverter() }
-                };
-                var msgDocument = (message as MuxerMessage)?.MsgDocument;
-                if (msgDocument is not null)
-                {
-                    var hasMethod = msgDocument.RootElement.TryGetProperty("method", out var methodProperty);
-                    var method = methodProperty.GetString();
-                    hasMethod &= method is not null;
-                    var hasId = msgDocument.RootElement.TryGetProperty("id", out var msgIdProperty);
-                    hasId &= msgIdProperty.TryGetUInt32(out var msgId);
+                Converters = { new JsonStringEnumConverter() }
+            };
+            var msgDocument = (message as MuxerMessage)?.MsgDocument;
+            if (msgDocument is not null)
+            {
+                var hasMethod = msgDocument.RootElement.TryGetProperty("method", out var methodProperty);
+                var method = methodProperty.GetString();
+                hasMethod &= method is not null;
+                var hasId = msgDocument.RootElement.TryGetProperty("id", out var msgIdProperty);
+                hasId &= msgIdProperty.TryGetUInt32(out var msgId);
 
-                    if (hasMethod && hasId)
+                if (hasMethod && hasId)
+                {
+                    var response = await OnRxRPCAsync(method!, msgDocument!, cancellation);
+                    response = response with { Id = msgId };
+                    try
                     {
-                        var response = await OnRxRPCAsync(method!, msgDocument!, cancellation);
-                        response = response with { Id = msgId };
                         await TxStream.WriteAsync(response.GetBytes(), cancellation).ConfigureAwait(false);
                     }
+                    catch (IOException)
+                    {
+                        // inability to provided a reply implies inability to provide an error message,
+                        // let connection management handle the underlying cause
+                    }
                 }
-            }
-            catch
-            {
-                throw;
             }
         }
     }
