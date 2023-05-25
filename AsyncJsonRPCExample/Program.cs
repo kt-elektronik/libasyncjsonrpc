@@ -22,13 +22,16 @@ finishedTimer.Elapsed += (sender, e) => finished.Release();
 
 // For the FibonacciEvent in this example, create the generator
 var fibonacciGenerator = new EventGenerator<FibonacciNotification>();
+
+// The demo subscribes to notifications that will return the Fibonacci sequence.
 client.FibonacciEvent += fibonacciGenerator.OnEvent;
 
-// Handle events in a task, just printing to console, no interaction with anything else in this demo
+// Handle events in a task, just printing to console, no interaction with anything else in this demo.
 _ = Task.Run(async () =>
 {
     await foreach (var e in fibonacciGenerator.OnEventAsync())
     {
+        // keep the finishedTimer from expiring and exiting the demo while still receiving events
         finishedTimer.Stop();
         finishedTimer.Start();
         Console.WriteLine($"Got FibonacciNotification.Value = {e.Value}");
@@ -36,17 +39,16 @@ _ = Task.Run(async () =>
     client.FibonacciEvent -= fibonacciGenerator.OnEvent;
 });
 
-// All client setup complete, start the client muxer
+// All client event handling setup is complete, start the client muxer
 _ = client.RunRxAsync().ConfigureAwait(false);
 
-// The demo subscribes for notifications that will return the fibonacci sequence
 var (response, error) = await client.CallAsync(new SubscribeFibonacci(93));
 if (error is not null)
 {
-    Console.WriteLine("RPC SubscribeFibonacci(10) has failed.");
+    Console.WriteLine("RPC SubscribeFibonacci(93) has failed.");
     Environment.Exit(1);
 }
-Console.WriteLine($"RPC SubscribeFibonacci(10) Response = {response!.Depth}");
+Console.WriteLine($"RPC SubscribeFibonacci(93) Response = {response!.Depth}");
 
 // Keep the top level code from finishing until no more notifications to reset the timer
 finishedTimer.Start();
