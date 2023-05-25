@@ -1,4 +1,22 @@
-﻿using AsyncJsonRPC;
+﻿// MIT License
+// Copyright (c) 2023 Dirk Kaar <dirk.kaar@samsongroup.com>
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+using AsyncJsonRPC;
 using AsyncJsonRPCExample;
 using AsyncJsonRPCExample.Notifications;
 using AsyncRPCCore;
@@ -31,7 +49,7 @@ _ = Task.Run(async () =>
 {
     await foreach (var e in fibonacciGenerator.OnEventAsync())
     {
-        // keep the finishedTimer from expiring and exiting the demo while still receiving events
+        // keep the finishedTimer from expiring and exiting the demo while still receiving events.
         finishedTimer.Stop();
         finishedTimer.Start();
         Console.WriteLine($"Got FibonacciNotification.Value = {e.Value}");
@@ -39,7 +57,7 @@ _ = Task.Run(async () =>
     client.FibonacciEvent -= fibonacciGenerator.OnEvent;
 });
 
-// All client event handling setup is complete, start the client muxer
+// All client event handling setup is complete, start the client muxer.
 _ = client.RunRxAsync().ConfigureAwait(false);
 
 var (response, error) = await client.CallAsync(new SubscribeFibonacci(93));
@@ -50,7 +68,7 @@ if (error is not null)
 }
 Console.WriteLine($"RPC SubscribeFibonacci(93) Response = {response!.Depth}");
 
-// Keep the top level code from finishing until no more notifications to reset the timer
+// Keep the top level code from finishing until no more notifications to reset the timer.
 finishedTimer.Start();
 await finished.WaitAsync();
 
