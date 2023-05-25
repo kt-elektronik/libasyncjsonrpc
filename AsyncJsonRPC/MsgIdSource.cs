@@ -25,26 +25,28 @@ namespace AsyncJsonRPC
         {
             int index = 0;
             uint? id;
-            foreach (var item in Stack)
+            lock (Stack)
             {
-                // Least Significant Zero bit
-                int lsz = BitOperations.TrailingZeroCount(~item);
-                if (lsz < BITCNT_UINT)
+                foreach (var item in Stack)
                 {
-                    id = (uint?)(index * BITCNT_UINT + lsz + 1);
-                    Stack[index] |= 1U << lsz;
-
-                    return (uint)id;
+                    // Least Significant Zero bit
+                    int lsz = BitOperations.TrailingZeroCount(~item);
+                    if (lsz < BITCNT_UINT)
+                    {
+                        id = (uint?)(index * BITCNT_UINT + lsz + 1);
+                        Stack[index] |= 1U << lsz;
+                        return (uint)id;
+                    }
+                    ++index;
                 }
-                ++index;
+                Stack.Add(1);
             }
-            Stack.Add(1);
             id = (uint?)(index * BITCNT_UINT + 1);
             return (uint)id;
         }
 
         /// <summary>
-        /// Release is only valid to call for an Id previously aquired from a
+        /// Release is only valid to call for an Id previously acquired from a
         /// call of the Fetch() method, that has not yet been released in the
         /// meantime.
         /// </summary>
@@ -53,13 +55,24 @@ namespace AsyncJsonRPC
         {
             int index = (int)((id - 1) / BITCNT_UINT);
             byte bit = (byte)((id - 1) - index * BITCNT_UINT);
-            var item = Stack[index] & ~((uint)1 << bit);
-            if (item == 0 && Stack.Count == index + 1)
+            lock (Stack)
             {
-                Stack.RemoveAt(index);
-            }
-            else
-            {
+                var item = Stack[index] & ~((uint)1 << bit);
+                if (item == 0)
+                {
+                    var end = index + 1;
+                    while (end < Stack.Count)
+                    {
+                        if (Stack[end] != 0) break;
+                        ++end;
+                    }
+                    if (Stack.Count == end)
+                    {
+                        while (index > 0 && Stack[index - 1] == 0) --index;
+                        Stack.RemoveRange(index, end - index);
+                        return;
+                    }
+                }
                 Stack[index] = item;
             }
         }
