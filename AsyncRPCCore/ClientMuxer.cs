@@ -64,16 +64,23 @@ namespace AsyncRPCCore
             var replyTCS = new TaskCompletionSource<IMuxerMessage<IdType>>();
             if (message.IsTwoWayMessage)
             {
+                try
+                {
+                    await RpcConcurrencySema.WaitAsync(cancellation).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    return null;
+                }
                 lock (PendingRpcs)
                 {
                     if (!PendingRpcs.TryAdd((IdType)message.Id!, replyTCS)) throw new InvalidOperationException("trying to add a message with an id that is in use");
                 }
-                await RpcConcurrencySema.WaitAsync(cancellation).ConfigureAwait(false);
             }
-            await TxStream.WriteAsync(message.RawMessage, cancellation).ConfigureAwait(false);
-            if (!message.IsTwoWayMessage) return null;
             try
             {
+                await TxStream.WriteAsync(message.RawMessage, cancellation).ConfigureAwait(false);
+                if (!message.IsTwoWayMessage) return null;
                 return await replyTCS.Task.WaitAsync(cancellation).ConfigureAwait(false);
             }
             catch (TaskCanceledException)
